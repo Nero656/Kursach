@@ -1,0 +1,684 @@
+<!doctype>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="utf8">
+    <meta charset="viewport" content="width = device-width, initial-scale=1.0">
+    <meta charset="description" content="Магазин радиотехники TechnoPower">
+    <meta charset="keywords" content="Магазин радиотехники TechnoPower, магазин радиотехники в Томске">
+    <title>Rest TechnoPower</title>
+    <script src="js/vue.js"></script>
+    <script src="js/axios.js"></script>
+    <script defer src="js/vue-credit-card-validation.common.js"></script>
+    <script defer src="js/main.js"></script>
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/master.css" rel="stylesheet">
+    <link rel="shortcut icon" href="img/logo.ico" type="image/x-icon">
+</head>
+<body>
+<div id="shop">
+    <nav class="navbar navbar-expand bg-nav navbar-dark container-fluid">
+        <a class="navbar-brand" @click="mainVoid"><img src="img/logo.ico" height="40px"> TechnoPower</a>
+        <div v-on:click="dropDownCategoryVoid"><a aria-haspopup="true" class="mr-2 nav-link dropdown-toggle"
+                                                  data-toggle="dropdown"
+                                                  href="#">Категории</a>
+            <ul class="nav bg-nav dropdown-queue" v-if="dropDownCategory">
+                <li class="nav-item li container-fluid" @click="categoryAction(item.id)"
+                    v-for="(item,index) in category">
+                    <a class="nav-link category-item">{{item.name}}</a>
+                </li>
+            </ul>
+        </div>
+        <div class="navbar-collapse">
+            <input class="form-control col-4 mr-2 inpStyle" v-model="query" placeholder="поиск по категориям"
+                   type="search">
+        </div>
+        <div class="user-panel" v-if="isAuth == 'true'">
+            <h5 @click="dropDownUserVoid" aria-haspopup="true" class="mr-2 dropdown-toggle nav-link"
+                data-toggle="dropdown"
+            >{{user.name}}</h5>
+            <ul @click="dropDownUserVoid" class="nav bg-nav dropdown-queue" v-if="dropDownUser">
+                <li class="nav-item li container-fluid" v-on:click="getUser()">
+                    <a class="nav-link category-item">профиль</a>
+                </li>
+                <li class="nav-item li container-fluid" v-on:click="getOrderList()">
+                    <a class="nav-link category-item">Корзина</a>
+                </li>
+                <li class="nav-item li container-fluid" v-on:click="getHistoryList()">
+                    <a class="nav-link category-item">История покупок</a>
+                </li>
+                <li class="nav-item li container-fluid" v-if="user.role === 'YWRtaW4='"
+                    v-on:click="getPurchasesOfAllUsersList()">
+                    <a class="nav-link category-item">История покупок всех пользователей</a>
+                </li>
+                <li class="nav-item li container-fluid" v-if="user.role === 'YWRtaW4='" v-on:click="userTableVoid">
+                    <a class="nav-link category-item">Пользователи</a>
+                </li>
+                <li class="nav-item li container-fluid" v-if="user.role === 'YWRtaW4='" v-on:click="addCategoryVoid">
+                    <a class="nav-link category-item">добавить категорию</a>
+                </li>
+                <li class="nav-item li container-fluid" v-if="user.role === 'YWRtaW4='" v-on:click="addProductFormVoid">
+                    <a class="nav-link category-item">добавить продукт</a>
+                </li>
+                <li class="nav-item exit container-fluid">
+                    <a @click="exitAction" class=" nav-link category-item">Выйти</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="btn-group" v-if="isAuth == 'false'">
+            <button @click='regVoid' class="btn btn-outline-info">зарегистрироваться</button>
+            <button @click="authVoid" class="btn btn-outline-info">войти</button>
+        </div>
+    </nav>
+
+    <!--Регистрация-->
+    <form class="FormPos container-fluid" v-if="registerForm">
+        <div @click="regVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h1 class="text-center">Регистрация</h1>
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <div class="alert alert-danger" role="alert" v-if="errorLogin">
+                Такой <b>Логин</b> занят!
+            </div>
+            <div class="form-group">
+                <label for="exampleInputName">Имя</label>
+                <input class="form-control inpStyle" id="exampleInputName" maxlength="10" type="text"
+                       v-model.trim="reg.name">
+            </div>
+            <div class="form-group">
+                <label for="exampleInputLogin">Логин</label>
+                <input class="form-control inpStyle" id="exampleInputLogin" maxlength="10" type="text"
+                       v-model.trim="reg.login">
+            </div>
+            <div class="form-group">
+                <label for="exampleInputEmail">Email адрес</label>
+                <input aria-describedby="emailHelp" class="form-control inpStyle" id="exampleInputEmail" maxlength="50"
+                       required type="email" v-model.trim="reg.email">
+                <small class="form-text text-muted">Мы никогда не дадим ваш EMAIL 3-м лицам</small>
+            </div>
+            <div class="form-group">
+                <label for="exampleInputPassword1">Password</label>
+                <input class="form-control inpStyle" id="exampleInputPassword1" maxlength="10" type="password"
+                       v-model.trim="reg.password">
+                <small class="form-text text-muted">Никому не говорите ваш пароль</small>
+            </div>
+            <button class="btn btn-outline-info container-fluid" type="submit" v-on:click.prevent="registerAction()">
+                Зарегистрироваться
+            </button>
+        </div>
+    </form>
+
+    <!--Авторизация-->
+    <form class="FormPos container-fluid" v-if="authForm">
+        <div @click="authVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h1 class="text-center">Авторизация</h1>
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <div class="alert alert-danger" role="alert" v-if="errorEmail">
+                не вырно указан <b>логин</b> или <b>пароль</b>
+            </div>
+            <div class="form-group">
+                <label>Логин</label>
+                <input class="form-control inpStyle" type="text" v-model.trim="auth.login">
+            </div>
+            <div class="form-group">
+                <label for="exampleInputPassword1">Пароль</label>
+                <input class="form-control inpStyle" type="password" v-model.trim="auth.password">
+                <small class="form-text text-muted">Никому не говорите ваш пароль</small>
+            </div>
+            <button class="btn btn-outline-info container-fluid" type="submit" v-on:click.prevent="authAction">
+                войти
+            </button>
+        </div>
+    </form>
+
+    <!-- Вывод категориий-->
+    <div class="indentation card-columns container col-10" v-if="categoryIndex">
+            <span class="category-index card text-center" @click="categoryAction(item.id)"
+                  v-for="(item,index) in computedList">
+                  <div @click="confirmCategoryDeleteVoid(item.id)" v-if="user.role === 'YWRtaW4='" class="cl-btn-4">
+                    <span class="top"></span>
+                    <span class="bot"></span>
+                  </div>
+                <img src="img/edit.ico" v-if="user.role === 'YWRtaW4='" class="mr-2 cl-btn-edit"
+                     @click="editCategoryVoid(item.id)">
+                <a>{{item.name}}</a>
+            </span>
+    </div>
+
+    <!--Подтверждение удаления для категории-->
+    <form class="FormPos container-fluid" v-show="confirmCategoryDeleteForm">
+        <div @click="confirmCategoryDeleteVoid(0)" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h5>Подтвердите удаление</h5>
+            <button @click="destroyCategory(categoryIdDel)" class='btn btn-outline-danger'>удалить</button>
+            <button @click="confirmCategoryDeleteVoid(0)" class='btn btn-outline-info'>отменить</button>
+        </div>
+    </form>
+
+    <!--вывод списка категорий для добаления продукта-->
+    <form class="FormPos container-fluid" v-if="addProductForm">
+        <div @click="addProductFormVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="indentation card-columns container col-10" v-if="addProductForm">
+                <span class="category-index card text-center" v-for="(item,index) in category">
+                <a v-on:click="addProductInputVoid(item.id)">{{item.name}}</a>
+                </span>
+            </div>
+        </div>
+    </form>
+
+    <!--Профиль-->
+    <form class="FormPos container-fluid" v-show="profileForm">
+        <div @click="getUser" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h3>Профиль</h3>
+            <div v-if="userProfileEdit === false">
+            <h5>Имя : {{user.name}}</h5>
+            <h5>Логин : {{user.login}}</h5>
+            <button class="btn btn-outline-info" v-on:click.prevent="userProfileEditVoid">Изменить</button>
+            </div>
+            <div v-if="userProfileEdit === true">
+                <div class="alert alert-danger" role="alert" v-if="error">
+                    Ошибка при изменении логина. Логин не должен совподать с предыдущим<b>(поле может быть пустым)</b>
+                </div>
+                <input type="text" class="form-control inpStyle" placeholder="Имя" v-model="reg.name"><br>
+                <input type="text" class="form-control inpStyle" placeholder="Логин" v-model="reg.login"><br>
+                <input type="text" class="form-control inpStyle" placeholder="Email" v-model="reg.email"><br>
+                <input type="password" class="form-control inpStyle" placeholder="пароль" v-model="reg.password"><br>
+                <button class="btn btn-outline-info"
+                        v-on:click.prevent="userProfileEditAction(user.id,reg.name,reg.login,reg.email,reg.password)">
+                    Изменить
+                </button>
+            </div>
+
+        </div>
+
+    </form>
+
+
+
+    <!--корзина-->
+    <form class="FormPos container-fluid" v-show="orderList">
+        <div @click="getOrderList()" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h3>Корзина</h3>
+            <div v-for="index in order">
+                <div v-if="user.id === index.user_id && index.status !== 'купленно'">
+                    <div v-for="item2 in index.products" class="row">
+                        <picture>
+                            <source :srcset="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url">
+                            <img :src="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url"
+                                 alt="product"
+                                 height="100px"
+                                 width="100px"
+                                 class="preview"
+                            >
+                        </picture>
+                        <div class="basket-body col-10">
+                            <h5 class="card-title">{{item2.title}}</h5>
+                            <h5 class="card-title">статус: {{index.status}}</h5>
+                            <p>{{item2.description}}</p>
+                            <b class="price float-right">{{price = item2.price}}₽</b>
+                            <form v-if="index.status === 'waiting'">
+                                <button class="btn btn-info" v-on:click.prevent="bayForm(item2.id,index.id)">Купить</button>
+                                <button class="btn btn-danger" v-on:click.prevent="confirmOrderDeleteVoid(index.id)">удалить из
+                                    корзины
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <form class="FormPos container-fluid" v-show="confirmOrderDeleteForm">
+        <div @click="confirmOrderDeleteVoid(0)" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h5>Подтвердите удаление</h5>
+            <button @click="destroyOrder(orderId)" class='btn btn-outline-danger'>удалить
+            </button>
+            <button @click="confirmOrderDeleteVoid(0)" class='btn btn-outline-light'>отменить</button>
+        </div>
+    </form>
+
+    <!--История покупок-->
+    <form class="FormPos container-fluid" v-show="historyList">
+        <div @click="getHistoryList()" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h3>Корзина</h3>
+            <div v-for="index in order">
+                <div v-if="user.id === index.user_id && index.status == 'купленно'">
+                    <div v-for="item2 in index.products" class="row">
+                        <picture>
+                            <source :srcset="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url">
+                            <img :src="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url"
+                                 alt="product"
+                                 height="100px"
+                                 width="100px"
+                                 class="preview"
+                            >
+                        </picture>
+                        <div class="basket-body col-10">
+                            <h5 class="card-title">{{item2.title}}</h5>
+                            <h5 class="card-title">статус: {{index.status}}</h5>
+                            <p>{{item2.description}}</p>
+                            <b class="price float-right">{{price = item2.price}}₽</b>
+                        </div>
+                        <span>Купленно {{index.updated_at}}</span>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!--История покупок всех юзеров-->
+    <form class="FormPos container-fluid" v-show="purchasesOfAllUsers">
+        <div @click="getPurchasesOfAllUsersList()" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h3>Корзина</h3>
+
+            <div v-for="index in order">
+                <div v-if="index.status == 'купленно'">
+                    <div v-for="item2 in index.products" class="row">
+                        <picture>
+                            <source :srcset="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url">
+                            <img :src="'http://localhost/kursovaia/TechPower/storage/app/'+item2.photo_url"
+                                 alt="product"
+                                 height="100px"
+                                 width="100px"
+                                 class="preview"
+                            >
+                        </picture>
+                        <div class="basket-body col-10">
+                            <h5 class="card-title">{{item2.title}}</h5>
+                            <h5 class="card-title">статус: {{index.status}}</h5>
+                            <p>{{item2.description}}</p>
+                            <b class="price float-right">{{price = item2.price}}₽</b>
+                        </div>
+                        <span>Купленно {{item2.updated_at}}</span>
+                    </div>
+                    <div v-for="item3 in index.users" class="row">
+                        <span>Пользователем {{item3.login}}</span>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!--касса-->
+    <form class="FormPos container-fluid" v-show="cardForm">
+        <div @click="bayForm" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>Введите данные кредитной карты, адрес и email</h5>
+            <label>Номер карты</label>
+            <input class="form-control" v-cardformat:formatCardNumber placeholder="Номер карты" v-model="card.number">
+            <div class="card-js"></div>
+            <label>Ф.И.О</label>
+            <input v-model="card.fio" type="text" class="form-control" placeholder="Ф.И.О">
+            <label>cvv/cvc</label>
+            <input v-model="card.cvc"
+                   oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"
+                   type="number"
+                   maxlength="3"
+                   class="form-control"
+                   placeholder="cvv/cvc">
+            <label>Адрес</label>
+            <input type="text" class="form-control" placeholder="Адрес">
+            <label>дата оканчания срока кредитной карты:</label>
+            <div class="row">
+                <div class="input-group col-2">
+                    <select v-model="card.dataM" class="form-control">
+                        <option>1</option>
+                        <option>2</option>
+                        <option>3</option>
+                        <option>4</option>
+                        <option>5</option>
+                        <option>6</option>
+                        <option>7</option>
+                        <option>8</option>
+                        <option>9</option>
+                        <option>10</option>
+                        <option>11</option>
+                        <option>12</option>
+                    </select>
+                    <select v-model="card.dataY" class="form-control">
+                        <option>20</option>
+                        <option>21</option>
+                        <option>22</option>
+                        <option>23</option>
+                        <option>24</option>
+                        <option>25</option>
+                        <option>26</option>
+                        <option>27</option>
+                        <option>28</option>
+                        <option>29</option>
+                        <option>30</option>
+                        <option>31</option>
+                    </select>
+                </div>
+                <button class="btn btn-info col-4" v-on:click.prevent="addOrderBay(user.id)">Купить</button>
+            </div>
+        </div>
+    </form>
+
+
+    <!--касса для не авторизированного пользователя-->
+    <form class="FormPos container-fluid" v-show="noAuth">
+        <div @click="bayNoAuthForm" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>Введите данные кредитной карты, адрес, email и паспортыне данные</h5>
+            <label>email</label>
+            <input class="form-control" type="email" placeholder="email" v-model="reg.email">
+            <label>Номер карты</label>
+            <input class="form-control" v-cardformat:formatCardNumber placeholder="Номер карты" v-model="card.number">
+            <div class="card-js"></div>
+            <label>Ф.И.О</label>
+            <input v-model="card.fio" type="text" class="form-control" placeholder="Ф.И.О">
+            <label>Номер паспорта</label>
+            <input class="form-control" placeholder="номер паспорта"
+                   oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"
+                   type="number"
+                   maxlength="10"
+            >
+            <label>Адрес</label>
+            <input type="text" class="form-control" placeholder="Адрес">
+            <label>cvv/cvc</label>
+            <input v-model="card.cvc"
+                   oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"
+                   type="number"
+                   maxlength="3"
+                   class="form-control"
+                   placeholder="cvv/cvc">
+            <label>дата оканчания срока кредитной карты:</label>
+            <div class="row fluid">
+                <div class="input-group col-2">
+                    <select v-model="card.dataM" class="form-control">
+                        <option>1</option>
+                        <option>2</option>
+                        <option>3</option>
+                        <option>4</option>
+                        <option>5</option>
+                        <option>6</option>
+                        <option>7</option>
+                        <option>8</option>
+                        <option>9</option>
+                        <option>10</option>
+                        <option>11</option>
+                        <option>12</option>
+                    </select>
+                    <select v-model="card.dataY" class="form-control">
+                        <option>20</option>
+                        <option>21</option>
+                        <option>22</option>
+                        <option>23</option>
+                        <option>24</option>
+                        <option>25</option>
+                        <option>26</option>
+                        <option>27</option>
+                        <option>28</option>
+                        <option>29</option>
+                        <option>30</option>
+                        <option>31</option>
+                    </select>
+                </div>
+                <button class="btn btn-info col4" @click="bayNoAuth">Купить</button>
+            </div>
+        </div>
+    </form>
+
+    <!--добавление категории-->
+    <form class="FormPos container-fluid" v-show="addCategoryForm">
+        <div @click="addCategoryVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>Добавить категорию</h5>
+            <input class="form-control" v-model="categoryName.name">
+            <button class="btn btn-outline-info preview-btn-indentation" v-on:click="addCategoryAction()">Добавить
+                категорию
+            </button>
+        </div>
+    </form>
+
+    <!--редактирование категории-->
+    <form class="FormPos container-fluid" v-show="editCategoryForm">
+        <div @click="editCategoryVoid(0)" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>редактировать категорию</h5>
+            <input class="form-control" v-model="reg.name">
+            <button class="btn btn-outline-info preview-btn-indentation" v-on:click="editCategoryAction()">
+                редактировать
+            </button>
+        </div>
+    </form>
+
+
+    <!--добаление продукта-->
+    <form class="FormPos container-fluid" v-if="addProductInput" id="addProduct">
+        <div @click="addProductInputVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>Добавление продукта</h5>
+            <label>Название продукта</label>
+            <input v-model.trim="addProduct.title" :maxlength="50" :minlength="min" class="form-control">
+            <label>Цена</label>
+            <input type="number" v-model.number="addProduct.price" :maxlength="max" class="form-control"
+                   placeholder="0">
+            <label>Описание продукта</label>
+            <textarea v-model="addProduct.description" :maxlength="300" class="form-control"></textarea>
+            <br>
+            <input @change="fileUpload" type="file" class="form-control-file" accept=".jpg, .jpeg, .png">
+            <br>
+            <img :src="picture_create" v-show="picture_create" height="100px" class="preview">  <!-- id="preview" -->
+            <br>
+            <button v-on:click.prevent="addProductAction(categoryId)"
+                    class="btn btn-outline-info preview-btn-indentation">Добавить
+            </button>
+        </div>
+    </form>
+
+    <!--изменение продукта-->
+    <form class="FormPos container-fluid" v-if="editProductInput" id = 'editProduct'>
+        <div @click="editProductFormVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <div class="alert alert-warning" role="alert" >
+                Если после редактирования продукт не обновился то <b>перезайдите в категорию с продуктом</b>
+            </div>
+            <div class="alert alert-danger" role="alert" v-if="error">
+                Все поля обязательно должны быть <b>заполнены</b>
+            </div>
+            <h5>изменение продукта</h5>
+            <label>Название продукта</label>
+            <input v-model.trim="editProduct.title" :maxlength="50" :minlength="min" class="form-control">
+            <label>Цена</label>
+            <input type="number" v-model.number="editProduct.price" :maxlength="max" class="form-control"
+                   placeholder="0">
+            <label>Описание продукта</label>
+            <textarea v-model="editProduct.description" :maxlength="300" class="form-control"></textarea>
+            <br>
+            <input @change="fileUploadEdit" type="file" class="form-control-file" accept=".jpg, .jpeg, .png">
+            <br>
+            <img :src="picture_create" v-show="picture_create" height="100px" class="preview">  <!-- id="preview" -->
+            <br>
+            <button v-on:click.prevent="editProductAction(categoryId)"
+                    class="btn btn-outline-info preview-btn-indentation">Добавить
+            </button>
+        </div>
+    </form>
+
+    <!--Админитрирование пользователей-->
+    <div class="container-fluid FormPos" v-if="userTable">
+        <div @click="userTableVoid" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <table class="table table-striped table-dark Form">
+            <thead>
+            <tr>
+                <th>id</th>
+                <th>Name</th>
+                <th>login</th>
+                <th>role</th>
+                <th>wallet</th>
+                <th>изменить</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(item,index) in users">
+                <form>
+                    <th>{{item.id}}</th>
+                    <th>{{item.name}}</th>
+                    <td>{{item.login}}</td>
+                    <td>
+                        <select class="form-control" v-model="item.role">
+                            <option>{{item.role}}</option>
+                            <option v-if="item.role == 'user'">admin</option>
+                            <option v-if="item.role == 'admin'">user</option>
+                        </select>
+                    </td>
+                    <td>{{item.wallet}}</td>
+                    <td>
+                        <button class="btn btn-outline-light"
+                                v-on:click.prevent="userEdit(item.id, item.name, item.role)">изменить
+                        </button>
+                    </td>
+                </form>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <!--Список продуктов-->
+    <div class="card-columns container col-7" v-show="productList">
+        <div class="card my-card" v-for="(item,index) in product"
+             @click="productPageVoid(item.id, item.photo_url, item.title, item.description, item.price)">
+            <picture>
+                <source :srcset="'http://localhost/kursovaia/TechPower/storage/app/'+item.photo_url">
+                <img :src="'http://localhost/kursovaia/TechPower/storage/app/'+item.photo_url" id="img-prod"
+                     alt="product"
+                     class="card-img-top"
+                     height="275"
+                >
+            </picture>
+            <div class="card-body">
+                <h5 class="card-title">{{item.title}}</h5>
+                <p class="card-text">{{item.description}}</p>
+            </div>
+        </div>
+    </div>
+    <!--страница продукта-->
+    <div class="product-index" v-show="productPage">
+        <h1 class="display-5">{{productIndex.title}}</h1>
+        <div class="row product-body">
+            <picture>
+                <source :srcset="'http://localhost/kursovaia/TechPower/storage/app/'+productIndex.photo_url">
+                <img :src="'http://localhost/kursovaia/TechPower/storage/app/'+productIndex.photo_url" alt="product"
+                     height="400px">
+            </picture>
+            <div class="product-index-info col-3">
+                <h3>цена: {{productIndex.price}} ₽</h3>
+                <div v-if="isAuth == 'true'">
+                    <button class="btn btn-info" v-on:click="addOrderList(user.id, productIndex.id)">Купить</button>
+                    <button @click="editProductFormVoid(productIndex.id)" v-if="user.role === 'YWRtaW4='"
+                            class="btn btn-info">редактировать   <img src="img/edit.ico" v-if="user.role === 'YWRtaW4='" class="cl-btn-edit-2 mr-2"
+                                                                        @click="editCategoryVoid(item.id)">
+                    </button>
+
+                    <button @click="confirmProductDeleteVoid(productIndex.id)" v-if="user.role === 'YWRtaW4='"
+                            class="btn btn-danger">Удалить
+                    </button>
+                </div>
+                <button v-else class="btn btn-info" v-on:click="bayNoAuthForm">Купить</button>
+                <hr>
+                <h3>Описание</h3>
+                <hr>
+                <p class="lead">{{productIndex.description}}</p>
+            </div>
+        </div>
+    </div>
+
+    <form class="FormPos container-fluid" v-show="confirmProductDeleteForm">
+        <div @click="confirmProductDeleteVoid(0)" class="cl-btn-3">
+            <span class="top"></span>
+            <span class="bot"></span>
+        </div>
+        <div class="container Form">
+            <h5>Подтвердите удаление</h5>
+            <button @click="destroyProduct(categoryProductId, productIndex.id)" class='btn btn-outline-danger'>удалить
+            </button>
+            <button @click="confirmProductDeleteVoid(0)" class='btn btn-outline-light'>отменить</button>
+        </div>
+    </form>
+
+    <footer>
+        <span>©Все права зашищены</span>
+        <a class="float-right avtor" href="https://www.facebook.com/profile.php?id=100006934118738">Автор Fraiy</a>
+    </footer>
+</div>
+</body>
+</html>
